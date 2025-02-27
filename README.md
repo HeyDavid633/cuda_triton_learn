@@ -6,13 +6,13 @@ Main learning code backup, and the organization and comments of existing example
 
 ```shell
 ├── learn-cuda-program
-│   ├── README.md   # refernce
+│   ├── README.md   # reference
 │   ├── archive_cuda_test  # archive learnNote
 │   ├── cuda_samples       # selected samples form cuda-samples
 │   ├── matmul_opt_example # examples to optimize GEMM
-│   └── my_cuda_program    # My arrangement of cuda
+│   └── my_cuda_program    # my arrangement of cuda (with annotation)
 └── learn-triton-program  
-    ├── 01-vectoradd       # Numbering tendency from Triton Tutorial
+    ├── 01-vectoradd       # number tendency from triton-tutorial
     ├── 02-fused-softmax
     ├── 03-matmul-bias-act
     ├── 03-matmul.py

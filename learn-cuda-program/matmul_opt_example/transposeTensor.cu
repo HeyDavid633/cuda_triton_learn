@@ -243,18 +243,18 @@ void hostMatrix(float *hostA, float *hostB, float *hostC, int N, int d)
     //      }
     //  }
     //  printf("\n");
-    // row_wmma_ker<<<grid_dim, block_dim>>>(dA, dtB, dC, N, d, N);
+    row_wmma_ker<<<grid_dim, block_dim>>>(dA, dtB, dC, N, d, N);
     // wmmaRowMatmul<<<grid_dim, block_dim>>>(dA, dtB, dC, N, d, N);
-    wmmashareRowMatmul<<<grid_dim, block_dim>>>(dA, dtB, dC, N, d, N);
+    // wmmashareRowMatmul<<<grid_dim, block_dim>>>(dA, dtB, dC, N, d, N);
     int repeat = 20;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
     for (int i = 0; i < repeat; i++)
     {
-        // row_wmma_ker<<<grid_dim, block_dim>>>(dA, dtB, dC, N, d, N);
+        row_wmma_ker<<<grid_dim, block_dim>>>(dA, dtB, dC, N, d, N);
         //  wmmaRowMatmul<<<grid_dim, block_dim>>>(dA, dtB, dC, N, d, N);
-        wmmashareRowMatmul<<<grid_dim, block_dim>>>(dA, dtB, dC, N, d, N);
+        // wmmashareRowMatmul<<<grid_dim, block_dim>>>(dA, dtB, dC, N, d, N);
     }
 
     cudaEventRecord(stop, 0);

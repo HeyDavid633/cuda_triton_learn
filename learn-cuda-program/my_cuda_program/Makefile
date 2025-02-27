@@ -1,6 +1,6 @@
 NVCC = nvcc
 NVCC_FLAGS = -arch=sm_89 -O3 -w -lcublas
-TARGET = my_TensorCoreGemm2
+TARGET = my_TensorCoreGemm
 # TARGET = tensorcore_matmul
 
 all: clean $(TARGET) 

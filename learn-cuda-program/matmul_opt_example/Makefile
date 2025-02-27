@@ -1,6 +1,7 @@
 NVCC = nvcc
 NVCC_FLAGS = -arch=sm_89 -O3
-TARGET = matmul_v5
+# TARGET = matmul_v5
+TARGET = transposeTensor
 
 # all 目标依赖于 $(TARGET)，但不直接定义规则
 all: clean $(TARGET) 

@@ -97,6 +97,20 @@ void matrixSerial_half_B_rowmajor(half *hostA, half *hostB, float *hostC, int M,
         }
     }
 }
+// B(K, N) --- BT(N, K)
+void matrixSerial_half_ABT(half *hostA, half *hostB, float *hostC, int M, int K, int N)
+{
+    for (int i = 0; i < M; i++){
+        for (int j = 0; j < N; j++){
+            float tmp = 0;
+            for (int s = 0; s < K; s++){
+                tmp += (float)(hostA[i * K + s]) * (float)(hostB[j * K + s]);
+            }
+            hostC[i * N + j] = tmp;
+        }
+    }
+}
+
 
 //B 是列主序
 __global__ void my_Simple_TesnorCoreGemm(half *dA, half *dB, float *dC, int M, int K, int N)
@@ -158,6 +172,37 @@ __global__ void my_Simple_TesnorCoreGemm2(half *dA, half *dB, float *dC, int M, 
     wmma::store_matrix_sync(dC + aRow * ld_c + bCol, frag_acc, ld_c, wmma::mem_row_major);
 }
 
+// Kernel for A * B^T
+__global__ void my_Simple_TensorCoreGemm_ABT(half *dA, half *dB, float *dC, int M, int K, int N)
+{
+    int warpM = (threadIdx.x + blockIdx.x * blockDim.x) / WARPSIZE;
+    int warpN = threadIdx.y + blockIdx.y * blockDim.y;
+
+    int ld_a = K;
+    int ld_b = K; // B实际是行主序，但此处转置看成原矩阵B的列主序 -- 对应给原矩阵B(K, N)的行数
+    int ld_c = N;
+
+    wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> frag_left;
+    wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::col_major> frag_right;
+    wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, float> frag_acc;
+    wmma::fill_fragment(frag_acc, 0.0f);
+
+    int aRow = warpM * WMMA_M;
+    int bCol = warpN * WMMA_N;
+    for (int i = 0; i < K; i += WMMA_K)
+    {
+        int aCol = i;
+        int bRow = i;
+
+        wmma::load_matrix_sync(frag_left, dA + aRow * ld_a + aCol, ld_a);
+        wmma::load_matrix_sync(frag_right, dB + bRow + bCol * ld_b, ld_b); //列主序访问
+        wmma::mma_sync(frag_acc, frag_left, frag_right, frag_acc);
+    }
+
+    wmma::store_matrix_sync(dC + aRow * ld_c + bCol, frag_acc, ld_c, wmma::mem_row_major);
+}
+
+
 int main()
 {
     half *hostA, *hostB;
@@ -193,8 +238,9 @@ int main()
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-    my_Simple_TesnorCoreGemm<<<grid_dim, block_dim>>>(dA, dB, dC, M, K, N);
-    // my_Simple_TesnorCoreGemm2<<<grid_dim, block_dim>>>(dA, dB, dC, M, K, N);
+    // my_Simple_TesnorCoreGemm<<<grid_dim, block_dim>>>(dA, dB, dC, M, K, N); // B-colmajor
+    // my_Simple_TesnorCoreGemm2<<<grid_dim, block_dim>>>(dA, dB, dC, M, K, N);  // B-rowmajor
+    my_Simple_TensorCoreGemm_ABT<<<grid_dim, block_dim>>>(dA, dB, dC, M, K, N);
 
     // for (int i = 0; i < repeat_times + warmup_times; i++){
     //     if(i == warmup_times)cudaEventRecord(start, 0);
@@ -211,8 +257,10 @@ int main()
 
     cudaMemcpy(hostC, dC, M * N * sizeof(float), cudaMemcpyDeviceToHost);
     
-    matrixSerial_half_B_colmajor(hostA, hostB, goldenC, M, K, N);
+
+    matrixSerial_half_ABT(hostA, hostB, goldenC, M, K, N);
     // matrixSerial_half_B_rowmajor(hostA, hostB, goldenC, M, K, N);
+    // matrixSerial_half_B_colmajor(hostA, hostB, goldenC, M, K, N);
 
     float sum_error = compare(goldenC, hostC, M, N);
 
